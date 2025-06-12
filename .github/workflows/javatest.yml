@@ -31,13 +31,20 @@ jobs:
           java-version: 17
           cache: maven
 
-      - name: Verify Java & Maven
+      - name: Install Maven
         run: |
-          java -version
+          MAVEN_VERSION=3.9.6
+          curl -fsSL https://downloads.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -o maven.tar.gz
+          tar -xzf maven.tar.gz
+          sudo mv apache-maven-${MAVEN_VERSION} /opt/maven
+          echo "export PATH=/opt/maven/bin:\$PATH" >> $GITHUB_ENV
+          export PATH=/opt/maven/bin:$PATH
           mvn -v
 
       - name: Build and test
-        run: mvn -B package --file pom.xml
+        run: |
+          export PATH=/opt/maven/bin:$PATH
+          mvn -B package --file pom.xml
 
   publish-job:
     runs-on: [self-hosted]
@@ -46,15 +53,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Java & Maven environment
+      - name: Set up Java 17 (LTS)
         uses: actions/setup-java@v3
         with:
           distribution: temurin
           java-version: 17
           cache: maven
 
+      - name: Install Maven
+        run: |
+          MAVEN_VERSION=3.9.6
+          curl -fsSL https://downloads.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -o maven.tar.gz
+          tar -xzf maven.tar.gz
+          sudo mv apache-maven-${MAVEN_VERSION} /opt/maven
+          echo "export PATH=/opt/maven/bin:\$PATH" >> $GITHUB_ENV
+          export PATH=/opt/maven/bin:$PATH
+          mvn -v
+
       - name: Package and upload artifact
         run: |
+          export PATH=/opt/maven/bin:$PATH
           mvn -B package --file pom.xml -DskipTests
           mkdir -p staging
           cp target/*jar-with-dependencies.jar staging/
