@@ -31,6 +31,16 @@ jobs:
           java-version: '14'
           cache: 'maven'
 
+      - name: Install Maven (if not already installed)
+        run: |
+          MAVEN_VERSION=3.9.6
+          curl -fsSL https://downloads.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -o maven.tar.gz
+          tar -xzf maven.tar.gz
+          sudo mv apache-maven-${MAVEN_VERSION} /opt/maven
+          echo "export PATH=/opt/maven/bin:\$PATH" >> $HOME/.bashrc
+          export PATH=/opt/maven/bin:$PATH
+          mvn -version
+
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -39,7 +49,9 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
 
       - name: Build and test with Maven
-        run: mvn -B package --file pom.xml
+        run: |
+          export PATH=/opt/maven/bin:$PATH
+          mvn -B package --file pom.xml
 
 
   publish-job:
@@ -56,8 +68,15 @@ jobs:
           java-version: '14'
           cache: 'maven'
 
+      - name: Export Maven Path
+        run: |
+          export PATH=/opt/maven/bin:$PATH
+          mvn -version
+
       - name: Build without tests
-        run: mvn -B package --file pom.xml -DskipTests
+        run: |
+          export PATH=/opt/maven/bin:$PATH
+          mvn -B package --file pom.xml -DskipTests
 
       - name: Prepare artifact
         run: |
