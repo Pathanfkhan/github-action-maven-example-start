@@ -24,21 +24,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 14 (Zulu)
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'zulu'
-          java-version: '14'
-          cache: 'maven'
+      - name: Install JDK 14 manually
+        run: |
+          mkdir -p $HOME/java14
+          curl -fsSL https://archive.org/download/jdk-14.0.2+12/OpenJDK14U-jdk_x64_linux_hotspot_14.0.2_12.tar.gz -o jdk14.tar.gz
+          tar -xzf jdk14.tar.gz -C $HOME/java14 --strip-components=1
+          echo "JAVA_HOME=$HOME/java14" >> $GITHUB_ENV
+          echo "$HOME/java14/bin" >> $GITHUB_PATH
+          java -version
 
-      - name: Install Maven 3.9.5 manually
+      - name: Install Maven 3.9.5
         run: |
           MAVEN_VERSION=3.9.5
           curl -fsSL https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -o maven.tar.gz
-          tar -xzf maven.tar.gz
-          mv apache-maven-${MAVEN_VERSION} $HOME/maven
-          echo "Maven installed:"
-          $HOME/maven/bin/mvn -version
+          tar -xzf maven.tar.gz -C $HOME
+          echo "$HOME/apache-maven-${MAVEN_VERSION}/bin" >> $GITHUB_PATH
+          mvn -version
 
       - name: Cache Maven packages
         uses: actions/cache@v4
@@ -48,10 +49,7 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
 
       - name: Build and test with Maven
-        run: |
-          export PATH=$HOME/maven/bin:$PATH
-          mvn -B package --file pom.xml
-
+        run: mvn -B package --file pom.xml
 
   publish-job:
     runs-on: [self-hosted]
@@ -60,16 +58,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 14 (Zulu)
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'zulu'
-          java-version: '14'
-          cache: 'maven'
-
-      - name: Use previously installed Maven
+      - name: Reuse JDK & Maven
         run: |
-          export PATH=$HOME/maven/bin:$PATH
+          echo "$HOME/java14/bin" >> $GITHUB_PATH
+          echo "$HOME/apache-maven-3.9.5/bin" >> $GITHUB_PATH
+          java -version
           mvn -version
           mvn -B package --file pom.xml -DskipTests
 
