@@ -31,15 +31,14 @@ jobs:
           java-version: '14'
           cache: 'maven'
 
-      - name: Install Maven (if not already installed)
+      - name: Install Maven 3.9.5 manually
         run: |
-          MAVEN_VERSION=3.9.6
-          curl -fsSL https://downloads.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -o maven.tar.gz
+          MAVEN_VERSION=3.9.5
+          curl -fsSL https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -o maven.tar.gz
           tar -xzf maven.tar.gz
-          sudo mv apache-maven-${MAVEN_VERSION} /opt/maven
-          echo "export PATH=/opt/maven/bin:\$PATH" >> $HOME/.bashrc
-          export PATH=/opt/maven/bin:$PATH
-          mvn -version
+          mv apache-maven-${MAVEN_VERSION} $HOME/maven
+          echo "Maven installed:"
+          $HOME/maven/bin/mvn -version
 
       - name: Cache Maven packages
         uses: actions/cache@v4
@@ -50,7 +49,7 @@ jobs:
 
       - name: Build and test with Maven
         run: |
-          export PATH=/opt/maven/bin:$PATH
+          export PATH=$HOME/maven/bin:$PATH
           mvn -B package --file pom.xml
 
 
@@ -68,20 +67,16 @@ jobs:
           java-version: '14'
           cache: 'maven'
 
-      - name: Export Maven Path
+      - name: Use previously installed Maven
         run: |
-          export PATH=/opt/maven/bin:$PATH
+          export PATH=$HOME/maven/bin:$PATH
           mvn -version
-
-      - name: Build without tests
-        run: |
-          export PATH=/opt/maven/bin:$PATH
           mvn -B package --file pom.xml -DskipTests
 
       - name: Prepare artifact
         run: |
-          mkdir staging
-          cp target/*jar-with-dependencies.jar staging
+          mkdir -p staging
+          cp target/*jar-with-dependencies.jar staging/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
