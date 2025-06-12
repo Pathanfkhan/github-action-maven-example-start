@@ -2,9 +2,9 @@ name: Maven CI/CD
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   build_and_test:
@@ -22,37 +22,21 @@ jobs:
           - 6379:6379
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install JDK 14 from Adoptium
-        run: |
-          curl -fsSL https://github.com/adoptium/temurin14-binaries/releases/download/jdk-14.0.2+12/OpenJDK14U-jdk_x64_linux_hotspot_14.0.2_12.tar.gz -o jdk14.tar.gz
-          mkdir -p $HOME/java14
-          tar -xzf jdk14.tar.gz -C $HOME/java14 --strip-components=1
-          echo "JAVA_HOME=$HOME/java14" >> $GITHUB_ENV
-          echo "$HOME/java14/bin" >> $GITHUB_PATH
-          export JAVA_HOME=$HOME/java14
-          export PATH=$HOME/java14/bin:$PATH
-          java -version
-
-      - name: Install Maven 3.9.6
-        run: |
-          curl -fsSL https://dlcdn.apache.org/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.tar.gz -o maven.tar.gz
-          mkdir -p $HOME/maven
-          tar -xzf maven.tar.gz -C $HOME/maven --strip-components=1
-          echo "$HOME/maven/bin" >> $GITHUB_PATH
-          export PATH=$HOME/maven/bin:$PATH
-          mvn -version
-
-      - name: Cache Maven packages
-        uses: actions/cache@v4
+      - name: Set up Java 17 (LTS)
+        uses: actions/setup-java@v3
         with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+          distribution: temurin
+          java-version: 17
+          cache: maven
 
-      - name: Build and test with Maven
+      - name: Verify Java & Maven
+        run: |
+          java -version
+          mvn -v
+
+      - name: Build and test
         run: mvn -B package --file pom.xml
 
   publish-job:
@@ -62,23 +46,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Reuse Java 14 and Maven
-        run: |
-          echo "$HOME/java14/bin" >> $GITHUB_PATH
-          echo "$HOME/maven/bin" >> $GITHUB_PATH
-          export JAVA_HOME=$HOME/java14
-          export PATH=$HOME/java14/bin:$HOME/maven/bin:$PATH
-          java -version
-          mvn -version
-          mvn -B package --file pom.xml -DskipTests
+      - name: Setup Java & Maven environment
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
 
-      - name: Prepare artifact
+      - name: Package and upload artifact
         run: |
+          mvn -B package --file pom.xml -DskipTests
           mkdir -p staging
           cp target/*jar-with-dependencies.jar staging/
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: Package
-          path: staging
+          path: staging/
